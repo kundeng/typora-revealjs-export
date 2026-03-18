@@ -917,9 +917,15 @@ const Rs={id:"highlight",HIGHLIGHT_STEP_DELIMITER:"|",HIGHLIGHT_LINE_DELIMITER:"
       }
 
       // Enable per-slide scrolling for overflowing content.
-      // Only the present slide has real dimensions; hidden slides are collapsed.
+      // Reveal.js sections have height:auto — we must set an explicit
+      // max-height so overflow-y:auto has a boundary to scroll within.
+      var slideHeight = Reveal.getConfig().height || 720;
+      var slideMargin = Reveal.getConfig().margin || 0.08;
+      var maxH = Math.floor(slideHeight * (1 - slideMargin * 2)) + 'px';
       function enableSlideScroll(slide) {
-        if (slide) slide.style.overflowY = 'auto';
+        if (!slide) return;
+        slide.style.maxHeight = maxH;
+        slide.style.overflowY = 'auto';
       }
       enableSlideScroll(document.querySelector('.reveal .slides > section.present'));
       Reveal.on('slidechanged', function (e) { enableSlideScroll(e.currentSlide); });
