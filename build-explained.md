@@ -4,113 +4,113 @@ revealjs-transition: slide
 revealjs-slideNumber: true
 ---
 
-# Teaching `build.js`
+# How `build.js` Works
 
-## A code-first Reveal.js walkthrough
+## A hands-on walkthrough for junior developers
 
-Learn Node.js, JavaScript, and build tooling from the real file
-
----
-
-## What This File Does
-
-`build.js` is a packaging script.
-
-It reads:
-
-```js
-src/theme.css
-src/plugin.js
-node_modules/reveal.js/...
-node_modules/katex/...
-```
-
-It writes:
-
-```js
-plugin-cdn.txt
-plugin.txt
-```
-
-Those output files get pasted into Typora's HTML export settings.
+Open `build.js` in your editor and follow along slide-by-slide
 
 ---
 
-## Source We Are Studying
+## What You'll Learn
+
+This deck walks through a **real** build script, line by line.
+
+By the end, you'll understand:
+
+- How Node.js reads and writes files
+- How to assemble HTML from pieces using JavaScript
+- Why libraries sometimes need patching
+- How a 200-line script replaces Webpack for small projects
+
+---
+
+## The Big Picture
+
+`build.js` is a **packaging script**. It reads source files and library code, then glues them into two output files:
+
+| Output | Size | What it contains |
+|--------|------|-----------------|
+| `plugin-cdn.txt` | ~20 KB | Links to CDN. Needs internet. |
+| `plugin.txt` | ~1.5 MB | Everything inlined. Works offline. |
+
+Users paste one of those into Typora's export settings — done.
+
+---
+
+## Mental Model: It's Just String Assembly
+
+The whole script boils down to:
+
+```
+1. Read files into strings
+2. Maybe patch some strings
+3. Glue strings together with HTML tags
+4. Write the result to disk
+```
+
+There's no compiler, no AST, no DOM — just text in, text out.
+
+> Note: Keep this mental model in mind. Every section below is just a variation of "read → transform → write."
+
+---
+
+## Line 1: The Shebang
 
 ```js
 #!/usr/bin/env node
-/**
- * Build script for Typora → Reveal.js Export Plugin
- *
- * Produces TWO variants of plugin.txt:
- *
- *   plugin-cdn.txt   (~16 KB)
- *   plugin.txt       (~920 KB)
- */
 ```
 
-- Line `1` is a shebang.
-- Lines `2-9` are a block comment for humans.
-- The file announces its contract before any code runs.
+This tells Unix: "run me with whatever `node` is in the PATH."
 
----
-
-## Line 1: Shebang
-
-```js
-#!/usr/bin/env node
-```
-
-- Unix shells read this before Node does.
-- `env node` asks the system to find the `node` executable in `PATH`.
-- That lets someone run the script directly if the file is executable.
-
-Equivalent command:
+**Try it:** make the file executable and run it directly:
 
 ```bash
-node build.js
+chmod +x build.js
+./build.js          # works because of the shebang
+node build.js       # also works, shebang is ignored
 ```
+
+> Note: Windows ignores shebangs. The line is harmless there.
 
 ---
 
-## Lines 24-25: Core Modules
+## Lines 24-25: Loading Node's Built-in Modules
 
 ```js
 const fs = require('fs');
 const path = require('path');
 ```
 
-- `require(...)` loads a CommonJS module.
-- `fs` is Node's built-in filesystem library.
-- `path` is Node's built-in path utility library.
-- `const` means the binding will not be reassigned.
+- `fs` = **f**ile **s**ystem — read, write, stat files
+- `path` = build file paths safely across OS
 
-Teaching point:
+These ship with Node. No `npm install` needed.
 
-```js
-const name = 'build.js';   // allowed
-name = 'other.js';         // error
-```
+**Common mistake:** writing `require('Path')` — module names are case-sensitive on Linux.
 
 ---
 
-## Why `fs` And `path` Matter
+## `const` — What It Actually Means
 
 ```js
-fs.readFileSync(...)
-fs.writeFileSync(...)
-fs.statSync(...)
-path.join(...)
+const fs = require('fs');
+fs = require('path');  // ❌ TypeError: Assignment to constant variable
 ```
 
-- `fs` gives this script read/write access to files.
-- `path.join(...)` avoids hardcoding slashes.
-- These are Node standard library modules, so no npm install is needed for them.
+`const` prevents **reassigning the variable**. It does NOT freeze the value.
+
+```js
+const arr = [1, 2];
+arr.push(3);           // ✅ fine — the array itself is mutable
+arr = [4, 5];          // ❌ can't reassign the binding
+```
+
+**Rule of thumb:** use `const` by default, `let` only when you need to reassign.
 
 ---
 
-## Lines 29-32: Configuration
+## Lines 29-32: Version Configuration
 
 ```js
 const REVEAL_VERSION = '5.2.1';
@@ -119,33 +119,13 @@ const REVEAL_CDN     = 'https://cdn.jsdelivr.net/npm/reveal.js@' + REVEAL_VERSIO
 const KATEX_CDN      = 'https://cdn.jsdelivr.net/npm/katex@' + KATEX_VERSION;
 ```
 
-- These are constants.
-- The first two are primitive strings.
-- The next two are derived strings built from those versions.
+**Why this matters:** the version appears in 10+ URLs later. If it were hardcoded everywhere, upgrading would mean hunting through the file.
 
-This is plain JavaScript concatenation:
-
-```js
-'hello ' + 'world'   // "hello world"
-```
+**Try it:** change `REVEAL_VERSION` to `'4.0.0'`, run `node build.js`, and open the CDN output. You'll see every URL updated automatically.
 
 ---
 
-## Why This Is Good Build-Script Design
-
-```js
-const REVEAL_VERSION = '5.2.1';
-```
-
-- One source of truth for each dependency version.
-- If the project upgrades Reveal.js, one line changes.
-- Hardcoding the version into many URLs would be brittle.
-
-This is a basic config pattern you see in real build tools.
-
----
-
-## Lines 36-38: Helper `pkg`
+## Lines 36-38: The `pkg()` Helper
 
 ```js
 function pkg(p) {
@@ -153,103 +133,65 @@ function pkg(p) {
 }
 ```
 
-- `function pkg(p)` declares a named function.
-- `p` is a parameter.
-- `__dirname` is a Node global: the current file's directory.
-- `path.join(...)` builds a full path.
-- `readFileSync(..., 'utf8')` returns a string.
+Let's break this apart:
 
-Example idea:
+| Piece | What it does |
+|-------|-------------|
+| `__dirname` | Directory where `build.js` lives (not where you ran `node` from!) |
+| `path.join(...)` | Combines path segments with the right slash for your OS |
+| `readFileSync(...)` | Reads the file **right now**, blocks until done |
+| `'utf8'` | Return a string, not a raw byte Buffer |
 
-```js
-pkg('reveal.js/dist/reveal.js')
+**Try it in the Node REPL:**
+
+```bash
+node -e "console.log(__dirname)"
 ```
-
-That reads a file from `node_modules`.
 
 ---
 
-## Important Node Concept: `__dirname`
-
-```js
-path.join(__dirname, 'node_modules', p)
-```
-
-- `__dirname` is not the shell's current directory.
-- It is the directory that contains `build.js`.
-- That makes the script robust even if run from another folder.
-
-Without `__dirname`, this can break:
+## Why `__dirname`, Not `./`
 
 ```bash
 cd /tmp
 node /path/to/project/build.js
 ```
 
+If the script used `'./node_modules'`, it would look in `/tmp/node_modules` — wrong!
+
+`__dirname` always resolves to where the script file lives, regardless of your shell's working directory.
+
+**Common mistake:** using relative paths in build scripts. Always anchor to `__dirname`.
+
 ---
 
-## Lines 39-41: Helper `src`
+## Lines 39-44: More Helpers
 
 ```js
 function src(p) {
   return fs.readFileSync(path.join(__dirname, 'src', p), 'utf8');
 }
-```
 
-- Same pattern as `pkg(...)`.
-- Different target folder.
-- This is a small refactor that removes repeated code.
-
-Instead of repeating:
-
-```js
-fs.readFileSync(path.join(__dirname, 'src', 'theme.css'), 'utf8')
-```
-
-the file can later say:
-
-```js
-src('theme.css')
-```
-
----
-
-## Lines 42-44: Helper `sizeKB`
-
-```js
 function sizeKB(s) {
   return (Buffer.byteLength(s, 'utf8') / 1024).toFixed(0);
 }
 ```
 
-- `Buffer.byteLength(...)` measures bytes.
-- That matters because file size is about bytes, not characters.
-- `/ 1024` converts bytes to kilobytes.
-- `.toFixed(0)` rounds and returns a string.
+`src()` is just like `pkg()` but reads from the `src/` folder.
 
-Teaching point:
+`sizeKB()` measures a string's size in kilobytes. Why not just `s.length`?
 
 ```js
-(1536 / 1024).toFixed(0)   // "2"
+'hello'.length                    // 5  (character count)
+Buffer.byteLength('hello', 'utf8') // 5  (same for ASCII)
+Buffer.byteLength('日本', 'utf8')   // 6  (3 bytes per CJK char!)
 ```
+
+File sizes are about **bytes**, not characters. `Buffer.byteLength` is the right tool.
 
 ---
 
-## Why `Buffer.byteLength` Instead Of `s.length`
-
-```js
-Buffer.byteLength(s, 'utf8')
-```
-
-- `s.length` counts JavaScript string code units.
-- File size on disk is about encoded bytes.
-- UTF-8 characters can use more than one byte.
-
-So `Buffer.byteLength(...)` is the correct Node choice here.
-
----
-
-## Lines 45-50: Helper `writePlugin`
+## Lines 45-50: The `writePlugin()` Helper
 
 ```js
 function writePlugin(name, content) {
@@ -260,245 +202,128 @@ function writePlugin(name, content) {
 }
 ```
 
-- `name` is the output filename.
-- `content` is the full string to write.
-- `writeFileSync` writes the file.
-- `statSync(...).size` gets the actual on-disk size.
-- `console.log(...)` prints a build report.
+This does three things:
+
+1. **Writes** the file to disk
+2. **Measures** the actual file size (not the string length)
+3. **Reports** it to the console
+
+**Why `statSync` instead of `sizeKB`?** Either would work here. Using `stat` on the written file is a double-check that the write succeeded and the OS-level size is what we expect.
 
 ---
 
-## Synchronous I/O Is Fine Here
+## Sync vs Async — When To Use Which
+
+All the `fs` calls in this script end with `Sync`:
 
 ```js
-fs.readFileSync(...)
-fs.writeFileSync(...)
-fs.statSync(...)
+fs.readFileSync(...)   // blocks until file is read
+fs.writeFileSync(...)  // blocks until file is written
 ```
 
-- These APIs block the Node event loop.
-- That is acceptable in a short CLI build script.
-- This is not a web server handling many requests.
+| Context | Use |
+|---------|-----|
+| Web server handling 1000 users | Async (`fs.readFile`, `fs.promises`) |
+| CLI script that runs once and exits | Sync is fine and simpler |
 
-Rule of thumb:
-
-- server code: prefer async
-- tiny build script: sync is often simpler and fine
+This script runs for ~100ms total. Blocking is not a problem.
 
 ---
 
-## Lines 54-55: Read Local Project Files
+## Lines 54-55: Loading Our Own Source
 
 ```js
 const customThemeCSS = src('theme.css');
 const pluginJS       = src('plugin.js');
 ```
 
-- `customThemeCSS` becomes a big string of CSS.
-- `pluginJS` becomes a big string of browser JavaScript.
-- The script is not executing those files here.
-- It is loading their text so it can embed that text into HTML.
-
-That distinction matters.
-
----
-
-## Data Type Check
-
-```js
-const customThemeCSS = src('theme.css');
-```
-
-After this line:
+After these lines, `customThemeCSS` is a **string** containing all of `theme.css`. The script hasn't executed that CSS — it's just text in memory.
 
 ```js
 typeof customThemeCSS   // "string"
+typeof pluginJS         // "string"
 ```
 
-The script is assembling strings, not ASTs, not modules, and not DOM nodes.
-
-This is text-based build tooling.
+This is the core idea: the build script treats code files as **data**.
 
 ---
 
-## Lines 61-63: Start The CDN Build
+## Lines 61-94: Building the CDN Version
 
 ```js
-console.log('Building plugin-cdn.txt ...');
-
 const cdnParts = [];
-```
 
-- First line tells the user what stage is happening.
-- Second line creates an array.
-- The array will collect many pieces of HTML.
-
-This is a common build pattern:
-
-```js
-parts.push('a')
-parts.push('b')
-parts.join('\n')
-```
-
----
-
-## Lines 65-92: Build The HTML Head
-
-```js
 cdnParts.push(
-  '<!-- Typora → Reveal.js Export Plugin  (v3.0 — CDN)',
-  '     Requires internet. Uses Reveal.js ' + REVEAL_VERSION + ' + KaTeX ' + KATEX_VERSION + ' from jsDelivr.',
-  '',
-  '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">',
-  '<meta name="mobile-web-app-capable" content="yes">',
-  '',
   '<link rel="stylesheet" href="' + REVEAL_CDN + '/dist/reset.css">',
-  '<link rel="stylesheet" href="' + REVEAL_CDN + '/dist/reveal.css">'
+  '<link rel="stylesheet" href="' + REVEAL_CDN + '/dist/reveal.css">',
+  // ... more links ...
+  '<style id="revealjs-custom-theme">',
+  customThemeCSS,
+  '</style>',
+  '<script id="typora-revealjs-plugin">',
+  pluginJS,
+  '</script>'
 );
-```
 
-- `push(...)` can accept many items at once.
-- Every item here is a string.
-- Together those strings form HTML that Typora will inject into `<head>`.
-
----
-
-## Teaching `Array.prototype.push`
-
-```js
-const cdnParts = [];
-
-cdnParts.push('A');
-cdnParts.push('B', 'C');
-```
-
-Now:
-
-```js
-cdnParts   // ['A', 'B', 'C']
-```
-
-That is why this file can call one large `push(...)` with dozens of strings.
-
----
-
-## Real HTML Assembly
-
-```js
-'<link rel="stylesheet" href="' + REVEAL_CDN + '/dist/reset.css">'
-```
-
-This becomes something like:
-
-```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reset.css">
-```
-
-So the script is generating finished HTML as a string.
-
----
-
-## Inline CSS In The Output
-
-```js
-'<style id="revealjs-custom-theme">',
-customThemeCSS,
-'</style>',
-```
-
-- The opening tag is one string.
-- `customThemeCSS` is another string loaded from disk.
-- The closing tag is another string.
-
-Joined together, the final HTML contains a real inline `<style>` block.
-
----
-
-## Inline JavaScript In The Output
-
-```js
-'<script id="typora-revealjs-plugin">',
-pluginJS,
-'</script>'
-```
-
-- Same pattern as the `<style>` block.
-- The file is embedding browser code directly into the generated plugin text.
-- This lets Typora export a self-booting HTML presentation.
-
----
-
-## Line 94: Finish The CDN File
-
-```js
 writePlugin('plugin-cdn.txt', cdnParts.join('\n'));
 ```
 
-- `join('\n')` combines the array into one big string.
-- The newline separator keeps the generated HTML readable.
-- `writePlugin(...)` then saves it to disk.
+The pattern:
 
-Simple example:
+1. Create an empty array
+2. Push strings (HTML tags, CSS, JS) into it
+3. Join them with newlines into one big string
+4. Write to disk
 
-```js
-['a', 'b', 'c'].join('\n')
-```
-
-becomes:
-
-```txt
-a
-b
-c
-```
+**Try it:** after the build, open `plugin-cdn.txt` in your editor. You'll see recognizable HTML — `<link>`, `<style>`, `<script>` tags.
 
 ---
 
-## Lines 102-118: Build An Asset Object
+## How `push` + `join` Works
+
+```js
+const parts = [];
+parts.push('<p>Hello</p>');
+parts.push('<p>World</p>');
+console.log(parts.join('\n'));
+```
+
+Output:
+
+```html
+<p>Hello</p>
+<p>World</p>
+```
+
+This is much cleaner than string concatenation with `+=` when you have dozens of pieces.
+
+> Note: `.push()` can take multiple arguments: `parts.push('a', 'b', 'c')` adds all three.
+
+---
+
+## Lines 100-118: Loading All Library Assets
 
 ```js
 const assets = {
-  resetCSS:      pkg('reveal.js/dist/reset.css'),
-  revealCSS:     pkg('reveal.js/dist/reveal.css'),
-  monokaiCSS:    pkg('reveal.js/plugin/highlight/monokai.css'),
-  revealJS:      pkg('reveal.js/dist/reveal.js'),
-  highlightJS:   pkg('reveal.js/plugin/highlight/highlight.js'),
-  notesJS:       pkg('reveal.js/plugin/notes/notes.js'),
-  searchJS:      pkg('reveal.js/plugin/search/search.js'),
-  zoomJS:        pkg('reveal.js/plugin/zoom/zoom.js')
+  resetCSS:    pkg('reveal.js/dist/reset.css'),
+  revealCSS:   pkg('reveal.js/dist/reveal.css'),
+  revealJS:    pkg('reveal.js/dist/reveal.js'),
+  highlightJS: pkg('reveal.js/plugin/highlight/highlight.js'),
+  notesJS:     pkg('reveal.js/plugin/notes/notes.js'),
+  searchJS:    pkg('reveal.js/plugin/search/search.js'),
+  zoomJS:      pkg('reveal.js/plugin/zoom/zoom.js'),
+  katexJS:     pkg('katex/dist/katex.min.js'),
+  // ... etc
 };
 ```
 
-- This is an object literal.
-- Each key is a readable name.
-- Each value is file content loaded from `node_modules`.
+An **object literal** maps human-readable names to file contents. Later code can say `assets.zoomJS` instead of remembering a path.
+
+**Key insight:** npm packages ship pre-built files in `dist/`. You can read them as text — you don't have to `require()` or `import` them.
 
 ---
 
-## Why Use An Object Here
-
-```js
-assets.revealJS
-assets.zoomJS
-assets.katexCSS
-```
-
-- Dot notation is readable.
-- The code does not need to remember numeric indexes.
-- This is better than:
-
-```js
-assets[0]
-assets[1]
-assets[2]
-```
-
-for named resources.
-
----
-
-## Lines 105-110: Rewriting CSS URLs
+## Lines 105-110: Fixing Relative URLs
 
 ```js
 whiteThemeCSS: pkg('reveal.js/dist/theme/white.css')
@@ -506,185 +331,111 @@ whiteThemeCSS: pkg('reveal.js/dist/theme/white.css')
   .replace(/url\(fonts\//g, 'url(' + REVEAL_CDN + '/dist/theme/fonts/'),
 ```
 
-- `pkg(...)` returns a CSS string.
-- `.replace(...)` returns a new modified string.
-- The regex finds relative font URLs inside the CSS.
-- The replacement rewrites them into absolute CDN URLs.
+**The problem:** the original CSS says `url(./fonts/some-font.woff)`. That relative path works when the CSS file lives next to the `fonts/` folder — but we're inlining the CSS into a random HTML file. The path breaks.
+
+**The fix:** rewrite relative paths to absolute CDN URLs.
+
+**Before:** `url(./fonts/source-sans-pro.woff)`
+
+**After:** `url(https://cdn.jsdelivr.net/.../fonts/source-sans-pro.woff)`
 
 ---
 
-## Why This Rewrite Is Necessary
-
-Suppose the original CSS contains:
-
-```css
-src: url(./fonts/source-sans-pro.woff) format('woff');
-```
-
-After embedding CSS into a random HTML file, that relative path may break.
-
-So the build script converts it to a full URL like:
-
-```css
-src: url(https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/theme/fonts/source-sans-pro.woff) format('woff');
-```
-
----
-
-## Regex And `.replace(...)`
+## Quick Regex Primer
 
 ```js
-.replace(/url\(\.\/fonts\//g, 'url(' + REVEAL_CDN + '/dist/theme/fonts/')
+/url\(\.\/fonts\//g
 ```
 
-- `/.../g` means a regular expression with the global flag.
-- `\(` escapes a literal parenthesis.
-- The goal is not "learn all regex now".
-- The goal is: build scripts often transform raw text with regex.
+| Symbol | Meaning |
+|--------|---------|
+| `/.../g` | Regular expression, **g**lobal (replace all matches, not just first) |
+| `url\(` | Literal text `url(` — the `\(` escapes the parenthesis |
+| `\.` | Literal dot — plain `.` means "any character" in regex |
+| `\/` | Literal forward slash |
 
-That is a very normal JavaScript tooling pattern.
+You don't need to master regex to work with build scripts. But you'll see `.replace(/pattern/g, 'replacement')` everywhere.
+
+**Try it:**
+
+```js
+'url(./fonts/a.woff) url(./fonts/b.woff)'
+  .replace(/url\(\.\/fonts\//g, 'url(https://cdn/fonts/')
+// "url(https://cdn/fonts/a.woff) url(https://cdn/fonts/b.woff)"
+```
 
 ---
 
-## KaTeX Follows The Same Pattern
+## Lines 121-126: The Build Report
 
 ```js
-katexCSS: pkg('katex/dist/katex.min.css')
-  .replace(/url\(fonts\//g, 'url(' + KATEX_CDN + '/dist/fonts/'),
-```
-
-- Read distributed CSS from the package.
-- Rewrite font paths.
-- Store the final string in `assets.katexCSS`.
-
-This is one of the core jobs of this build file:
-prepare third-party assets so they survive being inlined.
-
----
-
-## Lines 121-126: Print Asset Sizes
-
-```js
-console.log('  Asset sizes:');
 for (const [k, v] of Object.entries(assets)) {
   console.log('    ' + k.padEnd(18) + sizeKB(v).padStart(6) + ' KB');
 }
 ```
 
-- `Object.entries(assets)` turns the object into key-value pairs.
-- `const [k, v]` is destructuring assignment.
-- `for ... of` loops over those pairs.
-- `padEnd` and `padStart` align the output.
+**New concepts:**
+
+- `Object.entries(obj)` → `[['key1', val1], ['key2', val2], ...]`
+- `const [k, v]` = **destructuring** — pull array items into named variables
+- `.padEnd(18)` / `.padStart(6)` — pad strings for aligned columns
+
+Output looks like:
+
+```
+    resetCSS               1 KB
+    revealJS             110 KB
+    highlightJS          918 KB
+```
+
+**Try it:** `'hi'.padEnd(10, '.')` → `'hi........'`
 
 ---
 
-## Destructuring Example
+## Lines 128-137: The UMD Compatibility Problem
 
-```js
-const pair = ['revealJS', '...big string...'];
-const [k, v] = pair;
-```
+This is where the build script gets interesting.
 
-After this:
-
-```js
-k   // 'revealJS'
-v   // '...big string...'
-```
-
-That is what the loop is doing on each iteration.
-
----
-
-## Lines 128-134: The Compatibility Problem
-
-```js
-// All Reveal.js plugins use a UMD wrapper that checks `typeof exports`.
-// When Typora (or any Node-ish context) defines `exports`, the plugin
-// assigns to module.exports instead of window.RevealXxx.
-// The zoom plugin also accesses document.body.style at parse time,
-// which is null when the script runs in <head>.
-```
-
-- This comment is unusually important.
-- It explains a real bug caused by runtime environment assumptions.
-- Good build tooling often includes compatibility fixes like this.
-
----
-
-## What UMD Means Here
-
-UMD is a wrapper pattern that tries to run in different environments:
+**The problem:** Reveal.js plugins use a UMD wrapper:
 
 ```js
 if (typeof exports === 'object') {
-  module.exports = factory();
+  module.exports = factory();     // Node path
 } else {
-  window.SomeGlobal = factory();
+  window.RevealZoom = factory();  // Browser path
 }
 ```
 
-If Typora looks Node-like, a browser plugin may choose the wrong branch.
-
-That is exactly the problem this script works around.
+Typora's export environment looks enough like Node that `exports` exists. So the plugin chooses the **wrong branch** and never sets the browser global.
 
 ---
 
-## Lines 135-137: `wrapUmd`
+## The Fix: `wrapUmd()`
 
 ```js
 function wrapUmd(js) {
-  return '(function(){var exports=void 0,module=void 0,define=void 0;\n' + js + '\n})();';
+  return '(function(){var exports=void 0,module=void 0,define=void 0;\n'
+       + js + '\n})();';
 }
 ```
 
-- This function receives JavaScript source text.
-- It returns new JavaScript source text.
-- The returned text wraps the original code inside an IIFE.
-- It shadows `exports`, `module`, and `define`.
-
-That pushes UMD code toward browser behavior.
-
----
-
-## IIFE Teaching Moment
+This wraps the library code in an **IIFE** (Immediately Invoked Function Expression) that shadows those variables:
 
 ```js
 (function () {
-  console.log('runs immediately');
+  var exports = undefined;  // hides the outer `exports`
+  var module = undefined;
+  var define = undefined;
+  // ... original library code runs here ...
+  // UMD now sees exports === undefined → chooses browser path ✅
 })();
 ```
 
-This is an IIFE:
-
-- Immediately
-- Invoked
-- Function
-- Expression
-
-`wrapUmd(...)` generates one as a string.
+**`void 0`** is just a fancy way to write `undefined` that can't be overridden (an old JS safety trick).
 
 ---
 
-## Why `void 0`?
-
-```js
-var exports=void 0,module=void 0,define=void 0;
-```
-
-- `void 0` evaluates to `undefined`.
-- It is an old-school JavaScript idiom.
-- So inside the wrapper, those names exist but are undefined.
-
-That makes checks like this fail safely:
-
-```js
-typeof exports === 'object'
-```
-
----
-
-## Lines 139-152: `fixZoom`
+## Lines 139-152: Patching the Zoom Plugin
 
 ```js
 function fixZoom(js) {
@@ -700,235 +451,182 @@ function fixZoom(js) {
 }
 ```
 
-- This function patches one vendor file by string replacement.
-- It is surgical, not general-purpose parsing.
-- The goal is to avoid touching `document.body` before it exists.
+**The bug:** the zoom plugin accesses `document.body.style` at parse time. But our script runs in `<head>` — before `<body>` exists. Result: `Cannot read properties of null`.
+
+**The fix:** add a guard — check if `document.body` exists first.
 
 ---
 
-## The DOM Timing Bug
+## Before vs After the Patch
 
-This is unsafe if the script runs in `<head>` before `<body>` exists:
+**Original (crashes):**
 
 ```js
-document.body.style
+l = "transform" in document.body.style
+//                   ^^^^^^^^^^^^^ null!
 ```
 
-So the patch changes the logic to something guarded:
+**Patched (safe):**
 
 ```js
-document.body ? "transform" in document.body.style : true
+l = document.body ? "transform" in document.body.style : true
+//  ^^^^^^^^^^^^^ check first
 ```
 
-That is a classic defensive JavaScript pattern.
+This is a **defensive programming** pattern. You'll use it constantly in real code.
+
+**Common mistake:** assuming DOM elements exist. Always check when code runs early in the page lifecycle.
 
 ---
 
-## Why String-Patching Vendor Code Can Be OK
+## When Is String-Patching Vendor Code OK?
 
-- In app code, patching minified vendor text is usually a last resort.
-- In a build script, a narrow compatibility patch can be the simplest fix.
-- The comments above the function make the choice maintainable.
+- **In app code:** rarely — it's fragile and hard to maintain
+- **In a build script:** sometimes it's the simplest fix
 
-This file is honest about the tradeoff.
+The key is:
+
+1. The patch is **narrow** (two specific string replacements)
+2. The patch is **documented** (comments explain why)
+3. The patch is **isolated** (only in the build output, not in `node_modules`)
+
+If the upstream library updates and the strings change, `fixZoom` will silently fail to match. That's a maintenance risk worth noting.
 
 ---
 
-## Lines 154-165: Start The Embedded Build
+## Lines 154-190: Building the Embedded Version
+
+Same pattern as CDN, but everything is inlined:
 
 ```js
 const embParts = [];
 
+// CSS — all inlined
 embParts.push(
-  '<!-- Typora → Reveal.js Export Plugin  (v3.0 — self-contained)',
-  '     Bundled: Reveal.js ' + REVEAL_VERSION + ' • highlight.js • KaTeX ' + KATEX_VERSION + ' • notes • search • zoom',
-  '     External: KaTeX fonts (CDN, loaded when math is present)',
-  '',
-  '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">'
+  '<style>' + assets.resetCSS + '</style>',
+  '<style>' + assets.revealCSS + '</style>',
+  // ... more CSS ...
 );
-```
 
-- `embParts` is the offline version's fragment array.
-- Same strategy as `cdnParts`.
-- Different content policy: inline almost everything.
+// JS — all inlined, wrapped for compatibility
+embParts.push(
+  '<script>' + wrapUmd(assets.revealJS) + '</script>',
+  '<script>' + wrapUmd(assets.highlightJS) + '</script>',
+  '<script>' + wrapUmd(fixZoom(assets.zoomJS)) + '</script>',
+  '<script>' + assets.katexJS + '</script>',
+  '<script>' + pluginJS + '</script>'
+);
+
+writePlugin('plugin.txt', embParts.join('\n'));
+```
 
 ---
 
-## Lines 168-176: Inline CSS
-
-```js
-embParts.push(
-  '',
-  '<style id="revealjs-reset-css">' + assets.resetCSS + '</style>',
-  '<style id="revealjs-core-css">' + assets.revealCSS + '</style>',
-  '<style id="revealjs-theme">' + assets.whiteThemeCSS + '</style>',
-  '<style id="revealjs-highlight-theme">' + assets.monokaiCSS + '</style>',
-  '<style id="katex-css">' + assets.katexCSS + '</style>',
-  '<style id="revealjs-custom-theme">' + customThemeCSS + '</style>'
-);
-```
-
-- Every dependency CSS file becomes an inline `<style>` tag.
-- That is how the output becomes self-contained.
-- The browser no longer needs separate CSS files on disk.
-
----
-
-## Lines 179-190: Inline JavaScript
-
-```js
-embParts.push(
-  '',
-  '<script id="revealjs-core-js">' + wrapUmd(assets.revealJS) + '</script>',
-  '<script id="revealjs-highlight-plugin">' + wrapUmd(assets.highlightJS) + '</script>',
-  '<script id="revealjs-notes-plugin">' + wrapUmd(assets.notesJS) + '</script>',
-  '<script id="revealjs-search-plugin">' + wrapUmd(assets.searchJS) + '</script>',
-  '<script id="revealjs-zoom-plugin">' + wrapUmd(fixZoom(assets.zoomJS)) + '</script>',
-  '<script id="katex-js">' + assets.katexJS + '</script>',
-  '<script id="katex-auto-render">' + assets.katexAutoJS + '</script>',
-  '<script id="typora-revealjs-plugin">' + pluginJS + '</script>'
-);
-```
-
-- The script inlines browser JavaScript as text.
-- `wrapUmd(...)` is applied to Reveal and plugin bundles.
-- `fixZoom(...)` runs before `wrapUmd(...)` on the zoom plugin.
-
-That composition matters.
-
----
-
-## Function Composition In Real Code
+## Function Composition: Reading Inside-Out
 
 ```js
 wrapUmd(fixZoom(assets.zoomJS))
 ```
 
-Read it inside-out:
+Read it step by step:
 
-1. get the raw zoom plugin string
-2. patch it with `fixZoom(...)`
-3. wrap the patched result with `wrapUmd(...)`
+1. `assets.zoomJS` — the raw zoom plugin source (a string)
+2. `fixZoom(...)` — patches the `document.body` bug (returns a new string)
+3. `wrapUmd(...)` — wraps in IIFE to fix UMD detection (returns a new string)
 
-This is normal JavaScript expression nesting.
+Each function takes a string and returns a transformed string. This is how real JavaScript pipelines work — even without fancy functional programming libraries.
 
 ---
 
-## Load Order Matters
+## Why Load Order Matters
 
 ```js
-revealJS
-highlightJS
+revealJS         // 1. Reveal core (defines window.Reveal)
+highlightJS      // 2. Plugins (register with Reveal)
 notesJS
 searchJS
 zoomJS
-katexJS
-katexAutoJS
-pluginJS
+katexJS          // 3. KaTeX core
+katexAutoJS      // 4. KaTeX auto-render (needs KaTeX)
+pluginJS         // 5. Our boot code (needs everything above)
 ```
 
-- Reveal core must appear before Reveal plugins.
-- KaTeX must exist before auto-render runs.
-- The project's own `pluginJS` comes last because it depends on the others.
+In HTML, `<script>` tags execute in order. Our boot code calls `Reveal.initialize()`, so Reveal must already exist.
 
-Build scripts often encode dependency order manually.
+**Common mistake:** putting your app script before its dependencies. The browser won't wait — it just crashes with "X is not defined."
 
 ---
 
-## Lines 193-195: Finish The Embedded File
+## Lines 193-195: Done
 
 ```js
 writePlugin('plugin.txt', embParts.join('\n'));
-
 console.log('\nDone.');
 ```
 
-- Join the full HTML string.
-- Write it to disk.
-- Print a final status line.
-- Node exits naturally when the script has no more work to do.
+Node exits when there's nothing left to do. No explicit `process.exit()` needed.
+
+The whole script runs in ~100ms. It read ~15 files, patched two of them, assembled two HTML fragments, and wrote them to disk. That's it.
 
 ---
 
-## The Entire Program Shape
+## The Full Program, Zoomed Out
 
-```js
-read inputs
-build string arrays
-patch vendor assets
-join strings
-write output files
+```
+1. require('fs'), require('path')     ← load tools
+2. define helpers: pkg, src, sizeKB   ← shortcuts for file I/O
+3. read theme.css, plugin.js          ← our source files
+4. build CDN version (links + inline) ← array → join → write
+5. load all library assets            ← object of strings
+6. patch zoom plugin, wrap UMD        ← fix compatibility
+7. build embedded version (all inline)← array → join → write
+8. print "Done."                      ← exit
 ```
 
-This is textbook build-tool logic.
-
-It is mostly:
-
-- filesystem work
-- string transformation
-- deterministic output generation
+Every build script you'll ever write follows some variation of this pattern.
 
 ---
 
-## What This Teaches About JavaScript
+## What You Just Learned
 
-```js
-function ...
-const ...
-object literals
-arrays
-.push(...)
-.join(...)
-.replace(...)
-for ... of
-destructuring
-```
+**JavaScript fundamentals used in this file:**
 
-This file is useful because it teaches everyday JavaScript, not toy examples.
+- `const`, `function`, object literals, arrays
+- `.push()`, `.join()`, `.replace()`, `.padEnd()`
+- `for...of`, destructuring, string concatenation
+- IIFEs, `void 0`, regular expressions
 
----
+**Node.js concepts:**
 
-## What This Teaches About Node.js
+- `require()`, `__dirname`, `Buffer.byteLength()`
+- `fs.readFileSync()`, `fs.writeFileSync()`, `fs.statSync()`
+- `path.join()`, sync vs async I/O
 
-```js
-require('fs')
-require('path')
-__dirname
-Buffer.byteLength(...)
-readFileSync(...)
-writeFileSync(...)
-```
+**Build tooling patterns:**
 
-This is the Node.js "scripting and tooling" side of the platform:
-
-- not HTTP servers
-- not frameworks
-- just practical automation
+- Config constants for version pinning
+- Helper functions to reduce repetition
+- Text-based patching of vendor code
+- Array accumulation + join for HTML assembly
+- Build reports for visibility
 
 ---
 
-## What This Teaches About Libraries
+## Exercises
 
-```js
-reveal.js
-katex
-Reveal plugins
-```
-
-- npm packages often ship ready-made browser assets in `dist/`.
-- A build script can consume those files as text.
-- Not all integration issues are solved by package managers.
-- Sometimes the real work is adapting libraries to the host environment.
+1. **Change the version**: set `REVEAL_VERSION = '4.0.0'`, rebuild, open `plugin-cdn.txt` — what changed?
+2. **Add a report line**: after the asset size loop, log the total size of all assets combined
+3. **Template literals**: rewrite one `push(...)` call using backtick strings instead of `+` concatenation
+4. **Break it on purpose**: remove `wrapUmd()` from one plugin line, rebuild, export from Typora — what error do you get?
+5. **Trace the data flow**: pick any line in `plugin-cdn.txt` and trace it back to the exact `push()` call that generated it
 
 ---
 
-## Read The Real File Beside This Deck
+## Keep Going
 
-Recommended workflow:
+To really learn this file:
 
-1. Keep [build.js](/Users/kundeng/Dropbox/Projects/typora-revealjs-export/build.js) open.
-2. Advance one slide at a time.
-3. Compare the excerpt to the real source.
-4. Ask: data type, runtime environment, and output shape.
-
-That is how to learn build tooling from real code.
+1. Open `build.js` side by side with this deck
+2. Advance one slide, find the matching code
+3. For each section, ask yourself: **what is the data type?** (always a string)
+4. Run `node build.js` after any experiment — it's fast and safe
