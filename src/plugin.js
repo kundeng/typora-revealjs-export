@@ -27,10 +27,10 @@
     width:       1280,
     height:      720,
     margin:      0.08,
-    // Scroll view: auto-activate on mobile-width viewports
-    scrollActivationWidth: 435,
-    scrollProgress:        'auto',
-    scrollSnap:            'mandatory'
+    // Scroll view: always on (content that fits one screen is unaffected)
+    view:            'scroll',
+    scrollProgress:  'auto',
+    scrollSnap:      'mandatory'
   };
 
   // Keys that are ours (CSS / math), not Reveal.js config
