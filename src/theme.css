@@ -1,0 +1,121 @@
+/* ============================================================
+   Typora → Reveal.js  •  Technical Presentation Theme
+   Layered on top of Reveal.js "White" base theme.
+   Edit this file, then run `npm run build` to regenerate plugin.txt
+   ============================================================ */
+
+/* Hide Typora content during transformation */
+body.typora-revealjs-loading #write { visibility: hidden; }
+
+/* ── Design tokens ─────────────────────────────────── */
+:root {
+  --r-background-color: #ffffff;
+  --r-main-font: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont,
+                  'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --r-main-font-size: 32px;
+  --r-main-color: #1a1a2e;
+  --r-heading-font: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont,
+                    'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --r-heading-color: #0f0f23;
+  --r-heading-letter-spacing: -0.02em;
+  --r-heading-text-transform: none;
+  --r-heading1-size: 2.2em;
+  --r-heading2-size: 1.6em;
+  --r-heading3-size: 1.3em;
+  --r-heading4-size: 1.0em;
+  --r-link-color: #2563eb;
+  --r-link-color-hover: #1d4ed8;
+  --r-selection-background-color: #2563eb33;
+  --r-code-font: 'Fira Code', 'JetBrains Mono', 'SF Mono', 'Cascadia Code',
+                 'Source Code Pro', monospace;
+}
+
+/* ── Slide layout ──────────────────────────────────── */
+.reveal .slides section {
+  text-align: left;
+  padding: 40px 60px;
+  box-sizing: border-box;
+}
+
+/* ── Title slide (first slide) ─────────────────────── */
+.reveal .slides section.title-slide { text-align: center; }
+.reveal .slides section.title-slide h1 {
+  font-size: 2.6em; font-weight: 800; margin-bottom: 0.3em;
+  background: linear-gradient(135deg, #0f0f23 0%, #2563eb 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.reveal .slides section.title-slide h2 {
+  font-size: 1.2em; font-weight: 400; color: #64748b; margin-top: 0;
+}
+
+/* ── Headings ──────────────────────────────────────── */
+.reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+  font-weight: 700; line-height: 1.2; margin-bottom: 0.5em;
+}
+.reveal h1 { border-bottom: 3px solid #2563eb; padding-bottom: 0.2em; display: inline-block; }
+.reveal h2 { color: #1e293b; }
+.reveal h3 { color: #334155; font-weight: 600; }
+
+/* ── Body text ─────────────────────────────────────── */
+.reveal p  { line-height: 1.6; margin-bottom: 0.6em; }
+.reveal li { line-height: 1.5; margin-bottom: 0.3em; }
+.reveal ul, .reveal ol { margin-left: 0.5em; }
+
+/* ── Code blocks ───────────────────────────────────── */
+.reveal pre {
+  width: 100%; margin: 0.8em 0; border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+}
+.reveal pre code {
+  font-size: 0.55em; line-height: 1.5; padding: 1em 1.2em;
+  max-height: 480px; border-radius: 8px;
+}
+.reveal code { font-family: var(--r-code-font); }
+.reveal p code, .reveal li code {
+  background: #f1f5f9; color: #be185d; padding: 0.1em 0.35em;
+  border-radius: 4px; font-size: 0.85em; border: 1px solid #e2e8f0;
+}
+
+/* ── Blockquotes ───────────────────────────────────── */
+.reveal blockquote {
+  background: #f8fafc; border-left: 4px solid #2563eb;
+  padding: 0.8em 1.2em; margin: 0.8em 0; font-style: normal;
+  color: #334155; border-radius: 0 6px 6px 0;
+  width: 100%; box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.reveal blockquote p { margin: 0.3em 0; }
+
+/* ── Tables ────────────────────────────────────────── */
+.reveal table { border-collapse: collapse; margin: 0.8em auto; font-size: 0.75em; }
+.reveal table th {
+  background: #f1f5f9; font-weight: 600; color: #0f172a;
+  border-bottom: 2px solid #cbd5e1; padding: 0.6em 1em; text-align: left;
+}
+.reveal table td {
+  border-bottom: 1px solid #e2e8f0; padding: 0.5em 1em; text-align: left;
+}
+.reveal table tr:nth-child(even) { background: #f8fafc; }
+
+/* ── Images ────────────────────────────────────────── */
+.reveal img {
+  max-width: 85%; max-height: 60vh; border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* ── Misc ──────────────────────────────────────────── */
+.reveal strong { color: #0f172a; }
+.reveal em     { color: #475569; }
+.reveal .slide-number { font-size: 14px; color: #94a3b8; background: transparent; }
+.reveal .progress { color: #2563eb; height: 3px; }
+
+/* ── Fragments ─────────────────────────────────────── */
+.reveal .fragment.fade-in         { opacity: 0; }
+.reveal .fragment.fade-in.visible { opacity: 1; }
+
+/* ── Print / PDF ───────────────────────────────────── */
+@media print {
+  .reveal .slides section { page-break-after: always; min-height: 100vh; }
+}

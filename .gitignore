@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+test-cdn.html
+test-embedded.html
+test-debug.py
+*.pyc
