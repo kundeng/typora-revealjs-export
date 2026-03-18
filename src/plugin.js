@@ -26,7 +26,11 @@
     hash:        true,
     width:       1280,
     height:      720,
-    margin:      0.08
+    margin:      0.08,
+    // Scroll view: auto-activate on mobile-width viewports
+    scrollActivationWidth: 435,
+    scrollProgress:        'auto',
+    scrollSnap:            'mandatory'
   };
 
   // Keys that are ours (CSS / math), not Reveal.js config
@@ -46,6 +50,10 @@
   //    revealjs-center:     true | false
   //    revealjs-width:      number (e.g. 1920)
   //    revealjs-height:     number (e.g. 1080)
+  //    revealjs-view:       scroll (enable scroll view)
+  //    revealjs-scrollProgress: auto | true | false
+  //    revealjs-scrollSnap: mandatory | proximity | false
+  //    revealjs-scrollLayout: full | compact
   // ────────────────────────────────────────────────────────
   function readFrontMatter() {
     var cfg = {};

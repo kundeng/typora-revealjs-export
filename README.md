@@ -91,7 +91,19 @@ revealjs-height: 1080
 ---
 ```
 
-Supported: `theme`, `transition`, `controls`, `progress`, `slideNumber`, `center`, `width`, `height`.
+Supported: `theme`, `transition`, `controls`, `progress`, `slideNumber`, `center`, `width`, `height`, `view`, `scrollProgress`, `scrollSnap`, `scrollLayout`.
+
+### Scroll View
+
+Presentations automatically become scrollable on mobile-width viewports. To force scroll view on all devices:
+
+```yaml
+---
+revealjs-view: scroll
+---
+```
+
+You can also activate it via URL: append `?view=scroll` to the exported HTML URL.
 
 ## Keyboard Shortcuts
 
@@ -110,6 +122,7 @@ Supported: `theme`, `transition`, `controls`, `progress`, `slideNumber`, `center
 - **Reveal.js 5.2.1** with highlight, notes, search, and zoom plugins
 - **KaTeX 0.16.38** for fast math rendering (`$...$` and `$$...$$`)
 - **Syntax highlighting** for 35+ languages via highlight.js
+- **Scroll view** — auto-activates on mobile, or force with `revealjs-view: scroll`
 - **Custom theme** with gradient title slides, clean typography
 - **Speaker notes** via `> Note:` blockquotes
 - **Fragment animations** via `{.fragment}`
