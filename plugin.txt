@@ -516,7 +516,6 @@ body.typora-revealjs-loading #write { visibility: hidden; }
   text-align: left;
   padding: 40px 60px;
   box-sizing: border-box;
-  overflow-y: auto;
 }
 
 /* ── Title slide (first slide) ─────────────────────── */
@@ -917,8 +916,13 @@ const Rs={id:"highlight",HIGHLIGHT_STEP_DELIMITER:"|",HIGHLIGHT_LINE_DELIMITER:"
         Reveal.layout();  // recalculate slide sizes after math renders
       }
 
-      var count = document.querySelectorAll('.reveal .slides > section').length;
-      console.log('[typora-revealjs] Ready \u2014 ' + count + ' slides');
+      // Enable per-slide scrolling for overflowing content
+      var sections = document.querySelectorAll('.reveal .slides > section');
+      for (var i = 0; i < sections.length; i++) {
+        sections[i].style.overflowY = 'auto';
+      }
+
+      console.log('[typora-revealjs] Ready \u2014 ' + sections.length + ' slides');
     });
   }
 

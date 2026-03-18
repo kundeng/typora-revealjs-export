@@ -260,8 +260,13 @@
         Reveal.layout();  // recalculate slide sizes after math renders
       }
 
-      var count = document.querySelectorAll('.reveal .slides > section').length;
-      console.log('[typora-revealjs] Ready \u2014 ' + count + ' slides');
+      // Enable per-slide scrolling for overflowing content
+      var sections = document.querySelectorAll('.reveal .slides > section');
+      for (var i = 0; i < sections.length; i++) {
+        sections[i].style.overflowY = 'auto';
+      }
+
+      console.log('[typora-revealjs] Ready \u2014 ' + sections.length + ' slides');
     });
   }
 
