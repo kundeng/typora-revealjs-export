@@ -35,6 +35,7 @@ body.typora-revealjs-loading #write { visibility: hidden; }
   text-align: left;
   padding: 40px 60px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 /* ── Title slide (first slide) ─────────────────────── */

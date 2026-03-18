@@ -26,11 +26,7 @@
     hash:        true,
     width:       1280,
     height:      720,
-    margin:      0.08,
-    // Scroll view: always on (content that fits one screen is unaffected)
-    view:            'scroll',
-    scrollProgress:  'auto',
-    scrollSnap:      'mandatory'
+    margin:      0.08
   };
 
   // Keys that are ours (CSS / math), not Reveal.js config
