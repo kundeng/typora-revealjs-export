@@ -260,13 +260,16 @@
         Reveal.layout();  // recalculate slide sizes after math renders
       }
 
-      // Enable per-slide scrolling for overflowing content
-      var sections = document.querySelectorAll('.reveal .slides > section');
-      for (var i = 0; i < sections.length; i++) {
-        sections[i].style.overflowY = 'auto';
+      // Enable per-slide scrolling for overflowing content.
+      // Only the present slide has real dimensions; hidden slides are collapsed.
+      function enableSlideScroll(slide) {
+        if (slide) slide.style.overflowY = 'auto';
       }
+      enableSlideScroll(document.querySelector('.reveal .slides > section.present'));
+      Reveal.on('slidechanged', function (e) { enableSlideScroll(e.currentSlide); });
 
-      console.log('[typora-revealjs] Ready \u2014 ' + sections.length + ' slides');
+      var count = document.querySelectorAll('.reveal .slides > section').length;
+      console.log('[typora-revealjs] Ready \u2014 ' + count + ' slides');
     });
   }
 
